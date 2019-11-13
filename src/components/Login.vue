@@ -61,6 +61,7 @@ export default {
         console.log(valid)
         if(!valid) return 
         // 
+        const result = this.$http.post('login',this.loginForm)
       })
     }
   }
