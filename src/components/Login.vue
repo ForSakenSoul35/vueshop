@@ -6,20 +6,20 @@
         <img src="../assets/logo.png" />
       </div>
       <!-- 登录表单区 -->
-      <el-form  label-width="0px" :molde="loginForm" class="login_form">
+      <el-form  ref="loginFormRef" label-width="0px" :model="loginForm" :rules="loginFormRules" class="login_form">
         <!-- 用户名 -->
-        <el-form-item >
+        <el-form-item prop="username">
           <el-input prefix-icon="iconfont icon-user" v-model="loginForm.username"></el-input>
         </el-form-item>
         <!-- 密码 -->
-        <el-form-item >
+        <el-form-item prop="password">
           <!-- 不能使用 :model 的写法？ 为什么？ -->
           <el-input prefix-icon="iconfont icon-3702mima" v-model="loginForm.password" type="password"></el-input>
         </el-form-item>
         <!-- 按钮区 -->
         <el-form-item class="btns">
-          <el-button type="primary">登录</el-button>
-          <el-button type="info">重置</el-button>
+          <el-button type="primary" @click="handleLogin">登录</el-button>
+          <el-button type="info" @click="handleResetBtn">重置</el-button>
         </el-form-item>
       </el-form>
     </div>
@@ -31,13 +31,39 @@ export default {
     return {
       // 登录表单的数据绑定
       loginForm: {
-        username: 'xhb',
-        password: '123'
+        username: '',
+        password: ''
+      },
+      loginFormRules: {
+        // 表单验证规则对象
+        // 验证用户名
+        username: [
+          { required: true, message: '请输入登录名称', trigger: 'blur' },
+          { min: 3, max: 10, message: '长度在3到10个字符', trigger: 'blur' }
+        ],
+        // 验证密码
+        password: [
+          { required: true, message: '请输入登录密码', trigger: 'blur' },
+          { min: 6, max: 15, message: '长度在6到15个字符', trigger: 'blur' }
+        ]
       }
 
     }
+  },
+  methods: {
+    // 点击重置按钮
+    handleResetBtn () {
+      console.log(this)
+      this.$refs.loginFormRef.resetFields()
+    },
+    handleLogin () {
+      this.$refs.loginFormRef.validate(valid => {
+        console.log(valid)
+        if(!valid) return 
+        // 
+      })
+    }
   }
-
 }
 </script>
 <style lang='less' scoped>
