@@ -6,7 +6,13 @@
         <img src="../assets/logo.png" />
       </div>
       <!-- 登录表单区 -->
-      <el-form  ref="loginFormRef" label-width="0px" :model="loginForm" :rules="loginFormRules" class="login_form">
+      <el-form
+        ref="loginFormRef"
+        label-width="0px"
+        :model="loginForm"
+        :rules="loginFormRules"
+        class="login_form"
+      >
         <!-- 用户名 -->
         <el-form-item prop="username">
           <el-input prefix-icon="iconfont icon-user" v-model="loginForm.username"></el-input>
@@ -14,7 +20,11 @@
         <!-- 密码 -->
         <el-form-item prop="password">
           <!-- 不能使用 :model 的写法？ 为什么？ -->
-          <el-input prefix-icon="iconfont icon-3702mima" v-model="loginForm.password" type="password"></el-input>
+          <el-input
+            prefix-icon="iconfont icon-3702mima"
+            v-model="loginForm.password"
+            type="password"
+          ></el-input>
         </el-form-item>
         <!-- 按钮区 -->
         <el-form-item class="btns">
@@ -27,7 +37,7 @@
 </template>
 <script>
 export default {
-  data () {
+  data() {
     return {
       // 登录表单的数据绑定
       loginForm: {
@@ -47,21 +57,30 @@ export default {
           { min: 6, max: 15, message: '长度在6到15个字符', trigger: 'blur' }
         ]
       }
-
     }
   },
   methods: {
     // 点击重置按钮
-    handleResetBtn () {
+    handleResetBtn() {
       console.log(this)
       this.$refs.loginFormRef.resetFields()
     },
-    handleLogin () {
-      this.$refs.loginFormRef.validate(valid => {
-        console.log(valid)
-        if(!valid) return 
-        // 
-        const result = this.$http.post('login',this.loginForm)
+    handleLogin() {
+      this.$refs.loginFormRef.validate(async valid => {
+        if (!valid) return
+        // 发起请求
+        const { data: res } = await this.$http.post('login', this.loginForm)
+        console.log(res)
+        if (res.meta.status !== 200) return this.$message.error('登录失败')
+        this.$message.success('登录成功!')
+        // 1. 登录成功之后的token 保存到客户端的sessionStorage中
+        //  1.1 项目中除了登录之外的其他API接口，都需要登录之后才能访问
+        // 1.2 token只应当在当前网站打开期间有效，所以将token保存在sessionStorage
+        console.log(res.data.token)
+        // 保存token
+        window.sessionStorage.setItem('token', res.data.token)
+        // 编程式跳转
+        this.$router.push('./home')
       })
     }
   }
@@ -83,22 +102,22 @@ export default {
   left: 50%;
   top: 50%;
   // 相对自身;
-  transform: translate(-50%,-50%);
+  transform: translate(-50%, -50%);
   .avatar_box {
-    height:130px;
-    width:130px;
+    height: 130px;
+    width: 130px;
     border: 1px solid #eee;
     border-radius: 50%;
     padding: 10px;
     box-shadow: 0 0 10px #ddd;
     position: absolute;
     left: 50%;
-    transform: translate(-50%,-50%);
+    transform: translate(-50%, -50%);
     background-color: #fff;
     img {
       border-radius: 50%;
-      width:100%;
-      height:100%;
+      width: 100%;
+      height: 100%;
       background-color: #eee;
     }
   }
@@ -110,7 +129,7 @@ export default {
 .login_form {
   position: absolute;
   bottom: 0;
-  width:100%;
+  width: 100%;
   padding: 0 20px;
   box-sizing: border-box;
 }
