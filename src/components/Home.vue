@@ -23,7 +23,10 @@
           unique-opened
           :collapse="isCollapse"
           :collapse-transition="false"
+          router
+          :default-active="activePath"
         >
+          <!-- router 属性  -->
           <!-- 菜单项 -->
           <!-- 注意点：
             1. 必须为每一个菜单项指定一个唯一的index，这样点击折叠与展开的时候  不会同时进行
@@ -39,9 +42,10 @@
             </template>
             <!-- 子菜单项 -->
             <el-menu-item
-              :index="subItem.id+''"
+              :index="'/'+subItem.path"
               v-for=" subItem in item.children"
               :key="subItem.id"
+              @click="savaNavState('/'+subItem.path)"
             >
               <template slot="title">
                 <!-- 图标 -->
@@ -54,7 +58,10 @@
         </el-menu>
       </el-aside>
       <!-- 右侧内容主体 -->
-      <el-main>Main</el-main>
+      <el-main>
+        <!-- 路由占位符 -->
+        <router-view></router-view>
+      </el-main>
     </el-container>
   </el-container>
 </template>
@@ -71,11 +78,14 @@ export default {
         '102': 'iconfont icon-danju',
         '145': 'iconfont icon-baobiao'
       },
-      isCollapse: false
+      isCollapse: false,
+      // 被激活的链接地址
+      activePath: ''
     }
   },
   created() {
     this.getMenuList()
+    this.activePath = window.sessionStorage.getItem('activePath')
   },
   methods: {
     logout() {
@@ -93,6 +103,11 @@ export default {
     handleToggerBtnClick() {
       // 点击切换菜单按钮
       this.isCollapse = !this.isCollapse
+    },
+    // 保存链接激活状态
+    savaNavState(activePath) {
+      window.sessionStorage.setItem('activePath', activePath)
+      this.activePath = activePath
     }
   }
 }
