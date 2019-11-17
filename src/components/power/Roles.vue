@@ -152,7 +152,7 @@ export default {
       ).catch(err => err)
       console.log(confirmResult)
       if (confirmResult !== 'confirm') {
-        this.$message.info('已取消删除')
+        return this.$message.info('已取消删除')
       }
       const { data: res } = await this.$http.delete(
         `roles/${role.id}/rights/${rightid}`

@@ -361,7 +361,7 @@ export default {
       // 如果点击取消 需要对confirmResult 进行错误处理
       // 处理之后返回 cancle 字符串
       if (confirmResult !== 'confirm') {
-        this.$message.info('已取消删除')
+        return this.$message.info('已取消删除')
       }
       const { data: res } = await this.$http.delete('users/' + id)
       if (res.meta.status !== 200) {

@@ -35,17 +35,46 @@
           <!-- 动态参数表格 -->
           <el-table :data="manyTableData" border stripe>
             <!-- 展开行 -->
-            <el-table-column type="expand"></el-table-column>
-            <!-- 索引行 -->
+            <el-table-column type="expand">
+              <template slot-scope="scope">
+                <el-tag
+                  @close="handleTagRemove(i,scope.row)"
+                  closable
+                  v-for="(item,i) in scope.row.attr_vals"
+                  :key="i"
+                >{{item}}</el-tag>
+                <el-input
+                  class="input-new-tag"
+                  v-if="scope.row.inputVisible"
+                  v-model="scope.row.inputValue"
+                  ref="saveTagInput"
+                  size="small"
+                  @keyup.enter.native="handleInputConfirm(scope.row)"
+                  @blur="handleInputConfirm(scope.row)"
+                ></el-input>
+                <el-button
+                  v-else
+                  class="button-new-tag"
+                  size="small"
+                  @click="showInput(scope.row)"
+                >+ New Tag</el-button>
+              </template>
+            </el-table-column>
             <el-table-column type="index"></el-table-column>
-            <el-table-column label="参数名称" prop="attr_name"></el-table-column>
-            <el-table-column label="操作" slot-scope="scope">
-              <template>
-                <el-button @click="showEditDialog(scope.row.attr_id)" type="primary" icon="el-icon-edit" size="mini">编辑</el-button>
+            <el-table-column prop="attr_name" label="属性名称"></el-table-column>
+            <el-table-column label="操作">
+              <template slot-scope="scope">
+                <el-button
+                  @click="showEditDialog(scope.row.attr_id)"
+                  type="primary"
+                  icon="el-icon-edit"
+                  size="mini"
+                >编辑</el-button>
                 <el-button
                   type="danger"
                   icon="el-icon-delete"
                   size="mini"
+                  @click="removeParams(scope.row.attr_id)"
                 >删除</el-button>
               </template>
             </el-table-column>
@@ -62,14 +91,48 @@
           <!-- 静态表格 -->
           <el-table :data="onlyTableData" border stripe>
             <!-- 展开行 -->
-            <el-table-column type="expand"></el-table-column>
+            <el-table-column type="expand">
+              <template slot-scope="scope">
+                <el-tag
+                  @close="handleTagRemove(i,scope.row)"
+                  closable
+                  v-for="(item,i) in scope.row.attr_vals"
+                  :key="i"
+                >{{item}}</el-tag>
+                <el-input
+                  class="input-new-tag"
+                  v-if="scope.row.inputVisible"
+                  v-model="scope.row.inputValue"
+                  ref="saveTagInput"
+                  size="small"
+                  @keyup.enter.native="handleInputConfirm(scope.row)"
+                  @blur="handleInputConfirm(scope.row)"
+                ></el-input>
+                <el-button
+                  v-else
+                  class="button-new-tag"
+                  size="small"
+                  @click="showInput(scope.row)"
+                >+ New Tag</el-button>
+              </template>
+            </el-table-column>
             <!-- 索引行 -->
             <el-table-column type="index"></el-table-column>
             <el-table-column label="属性名称" prop="attr_name"></el-table-column>
             <el-table-column label="操作">
-              <template>
-                <el-button @click="showEditDialog(scope.row.attr_id)" type="primary" icon="el-icon-edit" size="mini">编辑</el-button>
-                <el-button type="danger" icon="el-icon-delete" size="mini">删除</el-button>
+              <template slot-scope="scope">
+                <el-button
+                  @click="showEditDialog(scope.row.attr_id)"
+                  type="primary"
+                  icon="el-icon-edit"
+                  size="mini"
+                >编辑</el-button>
+                <el-button
+                  type="danger"
+                  icon="el-icon-delete"
+                  size="mini"
+                  @click="removeParams(scope.row.attr_id)"
+                >删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -219,6 +282,8 @@ export default {
     async getParamsData() {
       if (this.selectionOptions.length !== 3) {
         this.selectionOptions = []
+        this.manyTableData = []
+        this.onlyTableData = []
         return
       }
       console.log(this.selectionOptions)
@@ -230,9 +295,19 @@ export default {
       if (res.meta.status !== 200) {
         return this.$message.error('获取分类参数错误')
       }
+      res.data.forEach(item => {
+        item.attr_vals = item.attr_vals ? item.attr_vals.split(' ') : []
+        // 添加属性
+        // 控制文本框的显示与隐藏
+        item.inputVisible = false
+        // 文本框的值
+        item.inputValue = ''
+        console.log(item.attr_vals)
+      })
       // 拿到接口数据 需要判断是动态属性还是静态的数据
       if (this.activeName === 'many') {
         this.manyTableData = res.data
+        console.log(this.manyTableData)
       } else {
         this.onlyTableData = res.data
       }
@@ -265,8 +340,10 @@ export default {
     // 展示修改的对话框
     async showEditDialog(attrId) {
       // 查询当前参数的信息
-      const { data: res } = await this.$http.get(`categories/${this.cateID}/attributes/${attrId}`,
-        { params: { attr_sel: this.activeName } })
+      const { data: res } = await this.$http.get(
+        `categories/${this.cateID}/attributes/${attrId}`,
+        { params: { attr_sel: this.activeName } }
+      )
       if (res.meta.status !== 200) {
         return this.$message.error('获取参数信息失败')
       }
@@ -279,7 +356,101 @@ export default {
       this.$refs.editAttrFormRefs.resetFields()
     },
     // 提交修改表单数据
-    handleEditFormSubmit() {}
+    handleEditFormSubmit() {
+      this.$refs.editAttrFormRefs.validate(async valid => {
+        if (!valid) {
+          return
+        }
+        console.log(this.activeName)
+        const { data: res } = await this.$http.put(
+          `categories/${this.cateID}/attributes/${this.editAttrForm.attr_id}`,
+          {
+            attr_name: this.editAttrForm.attr_name,
+            attr_sel: this.activeName
+          }
+        )
+        console.log(res)
+        if (res.meta.status !== 200) {
+          return this.$message.error('修改失败')
+        }
+        this.$message.success('修改成功')
+        this.getParamsData()
+        this.editAtrrdialogVisible = false
+      })
+    },
+    // 根据ID删除参数
+    async removeParams(id) {
+      const confirmResult = await this.$confirm(
+        '此操作将永久删除该参数, 是否继续?',
+        '提示',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      ).catch(err => err)
+      console.log(confirmResult)
+      // 如果点击确认 返回字符串 confirm
+      // 如果点击取消 需要对confirmResult 进行错误处理
+      // 处理之后返回 cancle 字符串
+      if (confirmResult !== 'confirm') {
+        return this.$message.info('已取消删除')
+      }
+      // 发起请求 删除参数
+      const { data: res } = await this.$http.delete(
+        `categories/${this.cateID}/attributes/${id}`
+      )
+      if (res.meta.status !== 200) {
+        return this.$message.error('删除参数失败')
+      }
+      this.$message.success('删除参数成功')
+      this.getParamsData()
+    },
+    // 新增tag(文本框失去焦点或者按下enter按键)
+    handleInputConfirm(row) {
+      if (row.inputValue.trim().length === 0) {
+        row.inputValue = ''
+        row.inputVisible = false
+        return
+      }
+      // 没有return 说明输入了内容 需要做处理
+      row.attr_vals.push(row.inputValue.trim())
+      row.inputValue = ''
+      row.inputVisible = false
+      this.saveAttrValue(row)
+    },
+    // 点击按钮 展示文本输入框
+    showInput(row) {
+      row.inputVisible = true
+      // 文本框 自动获取焦点
+      // $nextTick函数 当页面上元素被重新渲染之后 才会执行回调函数中的代码
+      this.$nextTick(_ => {
+        this.$refs.saveTagInput.$refs.input.focus()
+      })
+    },
+    // 更新tag标签
+    async saveAttrValue(row) {
+      // 请求接口 保存数据
+      const { data: res } = await this.$http.put(
+        `categories/${this.cateID}/attributes/${row.attr_id}`,
+        {
+          attr_name: row.attr_name,
+          attr_sel: row.attr_sel,
+          attr_vals: row.attr_vals.join(' ')
+        }
+      )
+      console.log(res)
+      if (res.meta.status !== 200) {
+        return this.$message.error('更新标签失败')
+      }
+      this.$message.success('更新标签成功')
+    },
+    // 处理标签删除
+    handleTagRemove(index, data) {
+      console.log(index)
+      data.attr_vals.splice(index, 1)
+      this.saveAttrValue(data)
+    }
   }
 }
 </script>
@@ -287,5 +458,11 @@ export default {
 <style lang="less" scoped>
 .cat_obt {
   margin: 15px 0px;
+}
+.el-tag {
+  margin: 10px;
+}
+.input-new-tag {
+  width: 120px;
 }
 </style>
