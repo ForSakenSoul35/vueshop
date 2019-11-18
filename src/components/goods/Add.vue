@@ -27,7 +27,12 @@
         label-position="top"
       >
         <!-- tabs -->
-        <el-tabs tab-position="left" v-model="activeIndex">
+        <el-tabs
+          tab-position="left"
+          v-model="activeIndex"
+          :before-leave="beforeTabLeave"
+          @tab-click="tabClicked"
+        >
           <el-tab-pane label="基本信息" name="0">
             <el-form-item label="商品信息" prop="goods_name">
               <el-input v-model="addGoodsForm.goods_name"></el-input>
@@ -47,7 +52,6 @@
                 :options="catelist"
                 :props="cascaderProps"
                 @change="handleCascaderChange"
-                clearable
               ></el-cascader>
             </el-form-item>
           </el-tab-pane>
@@ -101,11 +105,20 @@ export default {
         value: 'cat_id',
         children: 'children',
         expandTrigger: 'hover'
-      }
+      },
+      manytablelist: []
     }
   },
   created() {
     this.getCateList()
+  },
+  computed: {
+    cateId() {
+      if (this.addGoodsForm.goods_cat.length === 3) {
+        return this.addGoodsForm.goods_cat[2]
+      }
+      return null
+    }
   },
   methods: {
     // 获取所有商品分类
@@ -120,6 +133,35 @@ export default {
     // 级联选择器选择项变化
     handleCascaderChange() {
       console.log(this.addGoodsForm.goods_cat)
+      if (this.addGoodsForm.goods_cat.length !== 3) {
+        this.addGoodsForm.goods_cat = []
+      }
+    },
+    // 监听标签页离开
+    // 函数返回false 即不允许进行切换
+    beforeTabLeave(activeName, oldActiveName) {
+      if (oldActiveName === '0' && this.addGoodsForm.goods_cat.length !== 3) {
+        this.$message.error('请先选择商品分类')
+        return false
+      }
+    },
+    // tab被点击时触发
+    async tabClicked() {
+      // console.log(this.activeIndex)
+      if (this.activeIndex === '1') {
+        // 访问的是动态参数面板
+        const { data: res } = await this.$http.get(
+          `categories/${this.cateId}/attributes`,
+          {
+            params: { sel: 'many' }
+          }
+        )
+        if (res.meta.status !== 200) {
+          return this.$message.error('获取动态参数列表失败')
+        }
+        console.log(res.data)
+        this.manytablelist = res.data
+      }
     }
   }
 }
