@@ -55,17 +55,52 @@
               ></el-cascader>
             </el-form-item>
           </el-tab-pane>
-          <el-tab-pane label="商品参数" name="1">配置管理</el-tab-pane>
-          <el-tab-pane label="商品属性" name="2">配置管理</el-tab-pane>
-          <el-tab-pane label="商品图片" name="3">角色管理</el-tab-pane>
-          <el-tab-pane label="商品内容" name="4">定时任务补偿</el-tab-pane>
+          <el-tab-pane label="商品参数" name="1">
+            <!-- 渲染表单的item项 -->
+            <el-form-item :label="item.attr_name" v-for="item in manytablelist" :key="item.attr_id">
+              <!-- 复选框组 -->
+              <el-checkbox-group v-model="item.attr_vals">
+                <el-checkbox border :label="cb" v-for="(cb, i) in item.attr_vals" :key="i"></el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
+          </el-tab-pane>
+          <el-tab-pane label="商品属性" name="2">
+            <!-- 获取对应的静态属性 -->
+            <el-form-item :label="item.attr_name" v-for="item in onlytablelist" :key="item.attr_id">
+              <el-input v-model="item.attr_vals"></el-input>
+            </el-form-item>
+          </el-tab-pane>
+          <el-tab-pane label="商品图片" name="3">
+            <!-- action 图片要上传到的api接口 -->
+            <!-- on-preview 指定预览的接口 -->
+            <!--  on-remove 处理移除-->
+            <!-- list-type 展示图片显示的效果 文件，预览图或者其他的 -->
+            <el-upload
+              action="http://127.0.0.1:8888/api/private/v1/upload"
+              :on-preview="handlePreview"
+              :on-remove="handleRemove"
+              list-type="picture"
+              :on-success="handSuccessUpload"
+              :headers="headerObj"
+            >
+              <el-button size="small" type="primary">点击上传</el-button>
+            </el-upload>
+          </el-tab-pane>
+          <el-tab-pane label="商品内容" name="4">
+            <quill-editor v-model="addGoodsForm.goods_introduce"></quill-editor>
+            <el-button type="primary" class="btnAdd" @click="add">添加商品</el-button>
+          </el-tab-pane>
         </el-tabs>
       </el-form>
     </el-card>
+    <el-dialog title="图片预览" :visible.sync="imgDialogVisible" width="50%">
+      <img :src="imgUrl" alt="预览图片" class="previewImg" />
+    </el-dialog>
   </div>
 </template>
 
 <script>
+import _ from 'lodash'
 export default {
   data() {
     return {
@@ -77,7 +112,11 @@ export default {
         goods_weight: 0,
         goods_number: 0,
         // 商品所属的分类数组
-        goods_cat: []
+        goods_cat: [],
+        // 图片数组
+        pics: [],
+        // 商品详情
+        goods_introduce: ''
       },
       // 表单规则验证对象
       addGoodsFormRules: {
@@ -106,7 +145,18 @@ export default {
         children: 'children',
         expandTrigger: 'hover'
       },
-      manytablelist: []
+      manytablelist: [],
+      // 静态属性列表
+      onlytablelist: [],
+      // 图片上传组件的header 请求头对象
+      // 因为上传组件 不是通过axios 发起请求的
+      headerObj: {
+        Authorization: window.sessionStorage.getItem('token')
+      },
+      // 预览图片的url
+      imgUrl: '',
+      // 图片预览的Dialog
+      imgDialogVisible: false
     }
   },
   created() {
@@ -160,12 +210,101 @@ export default {
           return this.$message.error('获取动态参数列表失败')
         }
         console.log(res.data)
+        // 遍历 将item.attr_vals 从字符串转化为数组
+        res.data.forEach(item => {
+          item.attr_vals =
+            item.attr_vals.length === 0 ? [] : item.attr_vals.split(' ')
+        })
         this.manytablelist = res.data
       }
+      if (this.activeIndex === '2') {
+        // 访问的是静态是属性面板
+        const { data: res } = await this.$http.get(
+          `categories/${this.cateId}/attributes`,
+          {
+            params: { sel: 'only' }
+          }
+        )
+        if (res.meta.status !== 200) {
+          return this.$message.error('获取静态属性列表失败')
+        }
+        console.log(res.data)
+        // 遍历 将item.attr_vals 从字符串转化为数组
+        // res.data.forEach(item => {
+        //   item.attr_vals =
+        //     item.attr_vals.length === 0 ? [] : item.attr_vals.split(' ')
+        // })
+        this.onlytablelist = res.data
+      }
+    },
+    // 图片预览时的操作
+    handlePreview(file) {
+      this.imgUrl = file.response.data.url
+      this.imgDialogVisible = true
+    },
+    // 图片移除的操作
+    handleRemove(file) {
+      console.log(file)
+      // 获取将要删除的图片的临时路径
+      const filePath = file.response.data.tmp_path
+      // 找到图片对应的索引值
+      const i = this.addGoodsForm.pics.findIndex(x => x.pic === filePath)
+      // 删除
+      this.addGoodsForm.pics.splice(i, 1)
+    },
+    // 文件上传成功之后
+    handSuccessUpload(response) {
+      console.log(response)
+      if (response.meta.status !== 200) {
+        return
+      }
+      let picInfo = { pic: response.data.tmp_path }
+      this.addGoodsForm.pics.push(picInfo)
+      console.log(this.addGoodsForm.pics)
+    },
+    add() {
+      this.$refs.addGoodsFormRef.validate(async valid => {
+        if (!valid) {
+          return this.$message.error('请填写必要的表单项')
+        }
+        // 执行表单提交
+        // 对addGoodsForm进行深拷贝(使用lodash)
+        const form = _.cloneDeep(this.addGoodsForm)
+        form.goods_cat = form.goods_cat.join(',')
+        // 处理attrs数组，数组中需要包含商品的动态参数和静态属性
+        // 将manytablelist（动态参数）处理添加到attrs
+        this.manytablelist.forEach(item => {
+          form.attrs.push({
+            attr_id: item.attr_id,
+            attr_value: item.attr_vals.join(' ')
+          })
+        })
+        // 将oonlytablelist（静态属性）处理添加到attrs
+        this.onlytablelist.forEach(item => {
+          form.attrs.push({ attr_id: item.attr_id, attr_value: item.attr_vals })
+        })
+        // 商品的名称必须是唯一的
+        const { data: res } = await this.$http.post('goods', form)
+        if (res.meta.status !== 201) {
+          return this.$message.error('添加商品失败')
+        }
+        this.$message.success('添加商品成功')
+        // 编程式导航跳转到商品列表
+        this.$router.push('/goods')
+      })
     }
   }
 }
 </script>
 
 <style lang="less" scoped>
+.el-checkbox {
+  margin: 0 10px 0 0 !important;
+}
+.previewImg {
+  width: 100%;
+}
+.btnAdd {
+  margin-top: 15px;
+}
 </style>

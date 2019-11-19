@@ -10,6 +10,14 @@ import axios from 'axios'
 // 导入插件
 import TreeTable from 'vue-table-with-tree-grid'
 // 组件全局注册
+import VueQuillEditor from 'vue-quill-editor'
+
+// require styles
+import 'quill/dist/quill.core.css'
+import 'quill/dist/quill.snow.css'
+import 'quill/dist/quill.bubble.css'
+// 注册富文本编辑器
+Vue.use(VueQuillEditor)
 Vue.component('tree-table', TreeTable)
 
 // 配置请求的根路径
